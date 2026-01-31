@@ -119,8 +119,8 @@
         /* 适配小屏幕 */
         @media (max-width: 768px) {
             #clickBtn {
-                padding: 15px 45px;
-                font-size: 24px;
+                padding: 15px 35px;
+                font-size: 20px;
             }
             .blessing h1 {
                 font-size: 8vw;
@@ -175,16 +175,18 @@
             canvas.height = window.innerHeight;
         });
 
-        // 点击按钮触发逻辑（只等待背景音乐加载）
+        // 点击按钮触发逻辑（宽松监听+超时兜底）
         clickBtn.addEventListener('click', () => {
             if (isTriggered) return;
             isTriggered = true;
             clickBtn.style.display = 'none';
             loadingTip.style.display = 'block'; // 显示加载提示
             
-            // 只等待背景音乐加载完成
-            new Promise(resolve => bgMusic.addEventListener('canplaythrough', resolve))
-            .then(() => {
+            // 改用canplay（缓冲足够就触发）+ 5秒超时兜底
+            new Promise((resolve) => {
+                bgMusic.addEventListener('canplay', resolve);
+                setTimeout(resolve, 5000); // 5秒后强制进入
+            }).then(() => {
                 loadingTip.style.display = 'none'; // 隐藏加载提示
                 body.classList.add('active');
                 bgMusic.play().catch(err => console.log('音频播放提示:', err));

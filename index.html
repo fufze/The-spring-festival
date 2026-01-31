@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026马年春节快乐</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        /* 初始空白页面 */
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: "微软雅黑", "宋体", serif;
+            transition: background 0.5s ease;
+        }
+        /* 触发后红金背景 */
+        body.active {
+            background: linear-gradient(135deg, #b9121b 0%, #d42323 40%, #ffb81c 100%);
+            background-attachment: fixed;
+        }
+        /* 点击按钮 极简样式 */
+        #clickBtn {
+            padding: 20px 60px;
+            background: #ffd700;
+            color: #b9121b;
+            border: none;
+            border-radius: 50px;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 10;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+            transition: all 0.3s ease;
+        }
+        #clickBtn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 40px rgba(255, 215, 0, 1);
+        }
+        /* 画布 初始隐藏 */
+        #fireworksCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+        }
+        body.active #fireworksCanvas {
+            opacity: 1;
+        }
+        /* 祝福语 初始隐藏 */
+        .blessing {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.5s ease 0.3s;
+            pointer-events: none;
+        }
+        body.active .blessing {
+            opacity: 1;
+        }
+        .blessing h1 {
+            font-size: 6vw;
+            color: #fff;
+            text-shadow: 0 0 15px #ffd700, 0 0 30px #ffd700;
+            margin-bottom: 25px;
+        }
+        .blessing .poem {
+            font-size: 3vw;
+            color: #fff8dc;
+            line-height: 1.8;
+            text-shadow: 0 0 10px #b9121b;
+            margin-bottom: 30px;
+        }
+        .blessing .wish {
+            font-size: 2.5vw;
+            color: #ffd700;
+            text-shadow: 0 0 10px #b9121b;
+        }
+        /* 音频控件 低调显示 */
+        audio {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 6;
+            width: 300px;
+            opacity: 0;
+            transition: opacity 0.5s ease 0.5s;
+        }
+        body.active audio {
+            opacity: 0.2;
+        }
+        body.active audio:hover {
+            opacity: 1;
+        }
+        /* 适配小屏幕 */
+        @media (max-width: 768px) {
+            #clickBtn {
+                padding: 15px 45px;
+                font-size: 24px;
+            }
+            .blessing h1 {
+                font-size: 8vw;
+            }
+            .blessing .poem {
+                font-size: 4vw;
+            }
+            .blessing .wish {
+                font-size: 3.5vw;
+            }
+            audio {
+                width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button id="clickBtn">点击</button>
+    <canvas id="fireworksCanvas"></canvas>
+    <div class="blessing">
+        <h1>春节快乐</h1>
+        <p class="poem">爆竹声中一岁除，春风送暖入屠苏</p>
+        <p class="wish">祝你新的一年里学业顺利，万事如意</p>
+    </div>
+
+    <!-- 音频使用相对路径（和HTML同目录） -->
+    <audio id="bgMusic" loop>
+        <source src="./bg-music.mp3" type="audio/mpeg">
+        你的浏览器不支持音频播放
+    
+    <audio id="fireworkSound">
+        <source src="./firework-sound.mp3" type="audio/mpeg">
+    
+
+    <script>
+        const body = document.body;
+        const clickBtn = document.getElementById('clickBtn');
+        const canvas = document.getElementById('fireworksCanvas');
+        const ctx = canvas.getContext('2d');
+        const bgMusic = document.getElementById('bgMusic');
+        const fireworkSound = document.getElementById('fireworkSound');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        let fireworks = [];
+        let isTriggered = false;
+
+        // 窗口自适应
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // 点击按钮触发全屏效果
+        clickBtn.addEventListener('click', () => {
+            if (isTriggered) return;
+            isTriggered = true;
+            
+            // 切换页面状态
+            body.classList.add('active');
+            clickBtn.style.display = 'none';
+            
+            // 播放音频
+            bgMusic.play().catch(err => console.log('音频播放提示:', err));
+            
+            // 生成35个烟花 全屏绽放
+            fireworks = Array.from({length:35}, () => new Firework());
+            animate();
+        });
+
+        // 标准烟花类 - 爆炸效果逼真
+        class Firework {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                // 随机边缘发射：0下 1上 2左 3右
+                this.edge = Math.floor(Math.random() * 4);
+                switch(this.edge) {
+                    case 0: this.x = Math.random()*canvas.width; this.y = canvas.height; break;
+                    case 1: this.x = Math.random()*canvas.width; this.y = 0; break;
+                    case 2: this.x = 0; this.y = Math.random()*canvas.height; break;
+                    case 3: this.x = canvas.width; this.y = Math.random()*canvas.height; break;
+                }
+                // 目标：屏幕中心区域
+                this.targetX = canvas.width/2 + (Math.random()-0.5)*400;
+                this.targetY = canvas.height/2 + (Math.random()-0.5)*300;
+                this.speed = Math.random()*10 + 6; // 发射速度快
+                this.angle = Math.atan2(this.targetY - this.y, this.targetX - this.x);
+                this.speedX = Math.cos(this.angle)*this.speed;
+                this.speedY = Math.sin(this.angle)*this.speed;
+                this.exploded = false;
+                this.radius = 3;
+                // 烟花弹颜色 红黄渐变
+                this.color = `rgb(${255}, ${120 + Math.random()*135}, ${0})`;
+            }
+            update() {
+                if (!this.exploded) {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    // 到达目标区域爆炸
+                    const dist = Math.hypot(this.x - this.targetX, this.y - this.targetY);
+                    if (dist < 25) {
+                        this.exploded = true;
+                        this.createParticles();
+                        // 播放爆炸音效
+                        fireworkSound.currentTime = 0;
+                        fireworkSound.play().catch(err => {});
+                    }
+                } else {
+                    this.particles.forEach(p => p.update());
+                    this.particles = this.particles.filter(p => p.alpha > 0);
+                    // 粒子消失后重置烟花
+                    if (this.particles.length === 0) this.reset();
+                }
+            }
+            // 生成烟花粒子 扩散快+色彩艳
+            createParticles() {
+                this.particles = [];
+                const particleCount = 220; // 粒子浓密
+                for (let i=0; i<particleCount; i++) {
+                    // 红/金/橙三色 春节氛围
+                    const colorType = Math.floor(Math.random()*3);
+                    let color = '#ffd700';
+                    if (colorType === 0) color = '#ff3300';
+                    if (colorType === 1) color = '#ffcc00';
+                    if (colorType === 2) color = '#ff6600';
+                    this.particles.push(new Particle(this.x, this.y, color));
+                }
+            }
+            draw() {
+                if (!this.exploded) {
+                    // 绘制飞行烟花弹+拖尾
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.x - this.speedX*4, this.y - this.speedY*4);
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                } else {
+                    this.particles.forEach(p => p.draw());
+                }
+            }
+        }
+
+        // 烟花粒子类 - 扩散快 轨迹自然
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.angle = Math.random()*Math.PI*2; // 全方向扩散
+                this.speed = Math.random()*18 + 10; // 扩散速度大幅提升
+                this.gravity = 0.15; // 轻微重力下坠
+                this.friction = 0.9; // 摩擦小 飞得远
+                this.alpha = 1;
+                this.decay = Math.random()*0.04 + 0.015; // 消失速度适中
+                this.radius = Math.random()*3 + 1;
+            }
+            update() {
+                this.speed *= this.friction;
+                this.x += Math.cos(this.angle)*this.speed;
+                this.y += Math.sin(this.angle)*this.speed + this.gravity;
+                this.alpha -= this.decay;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // 动画循环
+        function animate() {
+            if (!isTriggered) return;
+            // 清空画布 无黑色叠加
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            fireworks.forEach(firework => {
+                firework.update();
+                firework.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+    </script>
+</body>
+</html>

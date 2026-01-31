@@ -45,6 +45,13 @@
             transform: scale(1.1);
             box-shadow: 0 0 40px rgba(255, 215, 0, 1);
         }
+        /* 加载提示样式 */
+        #loadingTip {
+            color: #ffd700;
+            font-size: 24px;
+            text-shadow: 0 0 10px #ffd700;
+            margin-top: 20px;
+        }
         /* 画布 初始隐藏 */
         #fireworksCanvas {
             position: absolute;
@@ -132,6 +139,7 @@
 </head>
 <body>
     <button id="clickBtn">点击</button>
+    <div id="loadingTip" style="display: none;">音频加载中...</div>
     <canvas id="fireworksCanvas"></canvas>
     <div class="blessing">
         <h1>春节快乐</h1>
@@ -139,18 +147,19 @@
         <p class="wish">祝你新的一年里学业顺利，万事如意</p>
     </div>
 
-    <!-- 音频使用相对路径（和HTML同目录） -->
+    <!-- 音频资源 -->
     <audio id="bgMusic" loop preload="auto">
         <source src="./bg-music.mp3" type="audio/mpeg">
         你的浏览器不支持音频播放
     
-    <audio id="fireworkSound">
+    <audio id="fireworkSound" preload="auto">
         <source src="./firework-sound.mp3" type="audio/mpeg">
     
 
     <script>
         const body = document.body;
         const clickBtn = document.getElementById('clickBtn');
+        const loadingTip = document.getElementById('loadingTip');
         const canvas = document.getElementById('fireworksCanvas');
         const ctx = canvas.getContext('2d');
         const bgMusic = document.getElementById('bgMusic');
@@ -166,24 +175,26 @@
             canvas.height = window.innerHeight;
         });
 
-        // 点击按钮触发全屏效果
+        // 点击按钮触发逻辑（只等待背景音乐加载）
         clickBtn.addEventListener('click', () => {
             if (isTriggered) return;
             isTriggered = true;
-            
-            // 切换页面状态
-            body.classList.add('active');
             clickBtn.style.display = 'none';
+            loadingTip.style.display = 'block'; // 显示加载提示
             
-            // 播放音频
-            bgMusic.play().catch(err => console.log('音频播放提示:', err));
-            
-            // 生成35个烟花 全屏绽放
-            fireworks = Array.from({length:35}, () => new Firework());
-            animate();
+            // 只等待背景音乐加载完成
+            new Promise(resolve => bgMusic.addEventListener('canplaythrough', resolve))
+            .then(() => {
+                loadingTip.style.display = 'none'; // 隐藏加载提示
+                body.classList.add('active');
+                bgMusic.play().catch(err => console.log('音频播放提示:', err));
+                // 生成35个烟花
+                fireworks = Array.from({length:35}, () => new Firework());
+                animate();
+            });
         });
 
-        // 标准烟花类 - 爆炸效果逼真
+        // 标准烟花类
         class Firework {
             constructor() {
                 this.reset();
@@ -200,41 +211,36 @@
                 // 目标：屏幕中心区域
                 this.targetX = canvas.width/2 + (Math.random()-0.5)*400;
                 this.targetY = canvas.height/2 + (Math.random()-0.5)*300;
-                this.speed = Math.random()*10 + 6; // 发射速度快
+                this.speed = Math.random()*10 + 6;
                 this.angle = Math.atan2(this.targetY - this.y, this.targetX - this.x);
                 this.speedX = Math.cos(this.angle)*this.speed;
                 this.speedY = Math.sin(this.angle)*this.speed;
                 this.exploded = false;
                 this.radius = 3;
-                // 烟花弹颜色 红黄渐变
                 this.color = `rgb(${255}, ${120 + Math.random()*135}, ${0})`;
             }
             update() {
                 if (!this.exploded) {
                     this.x += this.speedX;
                     this.y += this.speedY;
-                    // 到达目标区域爆炸
                     const dist = Math.hypot(this.x - this.targetX, this.y - this.targetY);
                     if (dist < 25) {
                         this.exploded = true;
                         this.createParticles();
-                        // 播放爆炸音效
+                        // 播放烟花音效（后台加载完就会播放）
                         fireworkSound.currentTime = 0;
                         fireworkSound.play().catch(err => {});
                     }
                 } else {
                     this.particles.forEach(p => p.update());
                     this.particles = this.particles.filter(p => p.alpha > 0);
-                    // 粒子消失后重置烟花
                     if (this.particles.length === 0) this.reset();
                 }
             }
-            // 生成烟花粒子 扩散快+色彩艳
             createParticles() {
                 this.particles = [];
-                const particleCount = 220; // 粒子浓密
+                const particleCount = 220;
                 for (let i=0; i<particleCount; i++) {
-                    // 红/金/橙三色 春节氛围
                     const colorType = Math.floor(Math.random()*3);
                     let color = '#ffd700';
                     if (colorType === 0) color = '#ff3300';
@@ -245,7 +251,6 @@
             }
             draw() {
                 if (!this.exploded) {
-                    // 绘制飞行烟花弹+拖尾
                     ctx.fillStyle = this.color;
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
@@ -262,18 +267,18 @@
             }
         }
 
-        // 烟花粒子类 - 扩散快 轨迹自然
+        // 烟花粒子类
         class Particle {
             constructor(x, y, color) {
                 this.x = x;
                 this.y = y;
                 this.color = color;
-                this.angle = Math.random()*Math.PI*2; // 全方向扩散
-                this.speed = Math.random()*18 + 10; // 扩散速度大幅提升
-                this.gravity = 0.15; // 轻微重力下坠
-                this.friction = 0.9; // 摩擦小 飞得远
+                this.angle = Math.random()*Math.PI*2;
+                this.speed = Math.random()*18 + 10;
+                this.gravity = 0.15;
+                this.friction = 0.9;
                 this.alpha = 1;
-                this.decay = Math.random()*0.04 + 0.015; // 消失速度适中
+                this.decay = Math.random()*0.04 + 0.015;
                 this.radius = Math.random()*3 + 1;
             }
             update() {
@@ -296,7 +301,6 @@
         // 动画循环
         function animate() {
             if (!isTriggered) return;
-            // 清空画布 无黑色叠加
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             fireworks.forEach(firework => {
                 firework.update();

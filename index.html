@@ -147,13 +147,14 @@
         <p class="wish">祝你新的一年里学业顺利，万事如意</p>
     </div>
 
-    <!-- 音频资源 -->
+    <!-- 音频资源：补上闭合标签 -->
     <audio id="bgMusic" loop preload="auto">
         <source src="./bg-music.mp3" type="audio/mpeg">
         你的浏览器不支持音频播放
     
     <audio id="fireworkSound" preload="auto">
         <source src="./firework-sound.mp3" type="audio/mpeg">
+        你的浏览器不支持音频播放
     
 
     <script>
@@ -189,7 +190,9 @@
             }).then(() => {
                 loadingTip.style.display = 'none'; // 隐藏加载提示
                 body.classList.add('active');
-                bgMusic.play().catch(err => console.log('音频播放提示:', err));
+                // 关键修改：显式播放两个音频，捕获错误不影响效果
+                bgMusic.play().catch(err => console.log('背景音乐播放提示:', err));
+                fireworkSound.play().catch(err => console.log('烟花音效播放提示:', err));
                 // 生成35个烟花
                 fireworks = Array.from({length:35}, () => new Firework());
                 animate();
